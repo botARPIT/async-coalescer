@@ -86,3 +86,27 @@ async def test_new_request_reruns_operation():
     assert isinstance(result2[0], RuntimeError)
 
     assert "user-1" not in coalescer._in_flight
+
+async def test_cancellation_of_one_waiter():
+    coalescer = RequestCoelescer()
+
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    async def operation():
+        started.set()
+        await release.wait()
+        return 42
+
+    task_a = asyncio.create_task(
+        coalescer.get("key", operation)
+    )
+
+    await started.wait()
+
+    task_a.cancel()
+
+    try:
+        await task_a
+    except asyncio.CancelledError:
+        pass
