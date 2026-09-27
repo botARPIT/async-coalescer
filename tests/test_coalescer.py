@@ -102,11 +102,27 @@ async def test_cancellation_of_one_waiter():
         coalescer.get("key", operation)
     )
 
+    task_b = asyncio.create_task(
+        coalescer.get("key", operation)
+    )
+
     await started.wait()
 
-    task_a.cancel()
+    shared_task = coalescer._in_flight["key"]
 
+    task_a.cancel()
+    release.set()
+
+    resultb = await task_b
     try:
         await task_a
     except asyncio.CancelledError:
         pass
+
+    # What do you expect here?
+    print("shared:", shared_task)
+    print("B:", task_b)
+
+    assert resultb == 42
+    assert shared_task.done()
+    assert not shared_task.cancelled()
