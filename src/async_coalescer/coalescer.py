@@ -22,7 +22,7 @@ class RequestCoelescer:
                 )
             self._in_flight[key] = task
 
-        return await task
+        return await asyncio.shield(task)
 
 
     async def _run(
