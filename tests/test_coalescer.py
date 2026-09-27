@@ -60,3 +60,29 @@ async def test_failed_operation_is_cleaned_up():
     assert str(results[1]) == "boom"
 
     assert "key" not in coalescer._in_flight
+
+async def test_new_request_reruns_operation():
+    coalescer = RequestCoelescer()
+
+    operation_count = 0
+    async def operation():
+        nonlocal operation_count
+        operation_count += 1
+        raise RuntimeError("not working")
+
+    result1 = await asyncio.gather(
+        coalescer.get("user-1", operation),
+        return_exceptions=True
+    )
+
+    result2 = await asyncio.gather(
+        coalescer.get("user-1", operation),
+        return_exceptions=True
+    )
+
+    assert operation_count == 2
+
+    assert isinstance(result1[0], RuntimeError)
+    assert isinstance(result2[0], RuntimeError)
+
+    assert "user-1" not in coalescer._in_flight
